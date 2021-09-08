@@ -58,11 +58,6 @@ module mem_tracer
     assign mem_wtran_data = wr_tran_acc ? cpu_data_if.wdata : cpu_data_if.rdata;
     assign mem_wtran_addr = wr_tran_acc ? cpu_data_if.addr : rd_tran_addr_ff;
     assign mem_addr = mem_we ? wr_ptr_ff : extnl_if.addr;
-    always_ff @(posedge clk or negedge rst_n)
-        if (~rst_n)
-            overflow_ff <= 0;
-        else
-            overflow_ff <= overflow_ff | (&wr_ptr_ff );
             
     always_ff @(posedge clk or negedge rst_n)
         if(~rst_n)
@@ -73,11 +68,25 @@ module mem_tracer
     always_ff @(posedge clk) 
         if ( rd_tran_acc )       
             rd_tran_addr_ff <= cpu_data_if.addr;
+            
     always_ff @(posedge clk or negedge rst_n)
         if (~rst_n)
             wr_ptr_ff <= 0;
         else if ( mem_we )
-            wr_ptr_ff <= wr_ptr_ff + 1;               
+            wr_ptr_ff <= wr_ptr_ff + 1;  
+            
+     always_ff @(posedge clk or negedge rst_n)
+        if (~rst_n)
+            overflow_ff <= 0;
+        else
+            overflow_ff <= overflow_ff | (&wr_ptr_ff );  
+                       
+     always_ff @(posedge clk or negedge rst_n)
+        if (~rst_n)
+            head_ptr_ff <= 0;
+        else if ( mem_we )
+            head_ptr_ff <= head_ptr_ff + overflow_ff;        
+            
     ram #(
         .adr_width(MEM_ADDR_WIDTH),
         .mem_size(CAPACITY )
