@@ -9,7 +9,11 @@
 
 `ifndef __SIGMA_TILE_H
   `define __SIGMA_TILE_H
-
+  
+  localparam TRACER_CAP = 256;
+  localparam TRACE_FLUSH_BIT = 0;
+  localparam TRACE_EN_BIT = 1;
+  
   interface MemSplit32 ();
     logic req;
     logic ack;
