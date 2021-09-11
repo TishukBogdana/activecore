@@ -63,7 +63,7 @@ module mem_tracer
     assign mem_wtran_addr =  trace_ctrl_i[TRACE_FLUSH_BIT] ? MEM_FLUSH_DATA
                                                            : ( wr_tran_acc ? cpu_data_if.addr : rd_tran_addr_ff );
     assign mem_addr = mem_we ? ( trace_ctrl_i[TRACE_FLUSH_BIT] ? mem_flush_addr_ff : wr_ptr_ff) 
-                             : extnl_if.addr[MEM_ADDR_WIDTH + 1:2];
+                             : mem_rd_addr_ff[MEM_ADDR_WIDTH + 1:2];
     
     always_ff @(posedge clk or posedge rst )
         if(rst)
@@ -84,7 +84,7 @@ module mem_tracer
     always_ff @(posedge clk or posedge rst)
         if (rst)
             wr_ptr_ff <= 0;
-        else
+        else if ( mem_we )
             wr_ptr_ff <=  trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 : wr_ptr_ff + 1 ;  
             
      always_ff @(posedge clk or posedge rst)
@@ -133,11 +133,11 @@ module mem_tracer
      if(rst)
         mem_rd_addr_ff <=0;
      else 
-        mem_rd_addr_ff <= extnl_if.addr[MEM_ADDR_WIDTH+1:0];
+        mem_rd_addr_ff <= extnl_if.addr[MEM_ADDR_WIDTH+1:2] + head_ptr_ff;
         
    assign extnl_if.rdata = ~(|mem_rd_addr_ff[1:0]) ? mem_rtran_addr 
                                                   : ((mem_rd_addr_ff[1:0] == 1'b1) ? mem_rtran_data
-                                                                                   : tran_we_ff[mem_rd_addr_ff[MEM_ADDR_WIDTH+1:2]]); 
+                                                                                   : {{31{'0}}, tran_we_ff[mem_rd_addr_ff[MEM_ADDR_WIDTH+1:2]]}); 
    assign extnl_if.ack = ~mem_we;
    
   // assign extnl_if.resp = 
