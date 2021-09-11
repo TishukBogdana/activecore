@@ -38,7 +38,7 @@ sigma
 	
 	, .mem_init("YES")
 	, .mem_type("elf")
-	, .mem_data("../../sw/benchmarks/heartbeat_variable.riscv")
+	, .mem_data("C://Users//Bogdana//FILES//ifmo//Master//2_course//SoCSECUR//activecore-master//designs//rtl//sigma//sw//benchmarks//heartbeat_variable.riscv")
 	, .mem_size(8192)
 ) sigma
 (

@@ -27,7 +27,7 @@ module mem_tracer
     input clk,
     input rst_n,
     input [3:0] trace_ctrl_i,
-    output trace_flush_end,
+    output trace_flush_end_o,
     MemSplit32.Monitor cpu_data_if, 
     MemSplit32.Slave extnl_if
     );
@@ -64,7 +64,13 @@ module mem_tracer
                                                            : ( wr_tran_acc ? cpu_data_if.addr : rd_tran_addr_ff );
     assign mem_addr = mem_we ? ( trace_ctrl_i[TRACE_FLUSH_BIT] ? mem_flush_addr_ff : wr_ptr_ff) 
                              : extnl_if.addr[MEM_ADDR_WIDTH + 1:2];
-            
+    
+    always_ff @(posedge clk or negedge rst_n )
+        if(~rst_n)
+            mem_flush_addr_ff <= '0;
+        else if (trace_ctrl_i[TRACE_FLUSH_BIT])
+            mem_flush_addr_ff <= mem_flush_addr_ff + 1;
+                          
     always_ff @(posedge clk or negedge rst_n)
         if(~rst_n)
             rd_tran_close_ff <=0;
@@ -129,6 +135,6 @@ module mem_tracer
    assign extnl_if.rdata = ~(|mem_rd_addr_ff[1:0]) ? mem_rtran_addr 
                                                   : ((mem_rd_addr_ff[1:0] == 1'b1) ? mem_rtran_data
                                                                                    : tran_we_ff[mem_rd_addr_ff[MEM_ADDR_WIDTH+1:2]]); 
-
+   assign trace_flush_end_o = &(mem_flush_addr_ff);
             
 endmodule
