@@ -25,7 +25,7 @@ module mem_tracer
     parameter CAPACITY = 256 
 )(
     input clk,
-    input rst_n,
+    input rst,
     input [3:0] trace_ctrl_i,
     output trace_flush_end_o,
     MemSplit32.Monitor cpu_data_if, 
@@ -65,14 +65,14 @@ module mem_tracer
     assign mem_addr = mem_we ? ( trace_ctrl_i[TRACE_FLUSH_BIT] ? mem_flush_addr_ff : wr_ptr_ff) 
                              : extnl_if.addr[MEM_ADDR_WIDTH + 1:2];
     
-    always_ff @(posedge clk or negedge rst_n )
-        if(~rst_n)
+    always_ff @(posedge clk or posedge rst )
+        if(rst)
             mem_flush_addr_ff <= '0;
         else if (trace_ctrl_i[TRACE_FLUSH_BIT])
             mem_flush_addr_ff <= mem_flush_addr_ff + 1;
                           
-    always_ff @(posedge clk or negedge rst_n)
-        if(~rst_n)
+    always_ff @(posedge clk or posedge rst)
+        if(rst)
             rd_tran_close_ff <=0;
         else
             rd_tran_close_ff <= rd_tran_acc;
@@ -81,24 +81,24 @@ module mem_tracer
         if ( rd_tran_acc )       
             rd_tran_addr_ff <= cpu_data_if.addr;
             
-    always_ff @(posedge clk or negedge rst_n)
-        if (~rst_n)
+    always_ff @(posedge clk or posedge rst)
+        if (rst)
             wr_ptr_ff <= 0;
-        else if ( mem_we )
-            wr_ptr_ff <=  trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 :wr_ptr_ff + 1;  
+        else
+            wr_ptr_ff <=  trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 : wr_ptr_ff + 1 ;  
             
-     always_ff @(posedge clk or negedge rst_n)
-        if (~rst_n)
+     always_ff @(posedge clk or posedge rst)
+        if (rst)
             overflow_ff <= 0;
         else
             overflow_ff <= ( overflow_ff | (&wr_ptr_ff )) 
                          & ~trace_ctrl_i[TRACE_FLUSH_BIT];  
                        
-     always_ff @(posedge clk or negedge rst_n)
-        if (~rst_n)
+     always_ff @(posedge clk or posedge rst)
+        if (rst)
             head_ptr_ff <= 0;
         else if ( mem_we )
-            head_ptr_ff <= ~trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 : ( head_ptr_ff + overflow_ff );        
+            head_ptr_ff <= trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 : ( head_ptr_ff + overflow_ff );        
             
     ram #(
         .adr_width(MEM_ADDR_WIDTH),
@@ -121,13 +121,16 @@ module mem_tracer
     );
     
     for ( genvar ii = 0; ii < CAPACITY; ii = ii + 1 )
-        always_ff @(posedge clk )
-            if (mem_we)
-                tran_we_ff[ii] <= (ii == wr_ptr_ff ) ? wr_tran_acc : tran_we_ff[ii];
+        always_ff @(posedge clk or posedge rst)
+            if(rst)
+                tran_we_ff[ii] <= '0;
+            else if (mem_we)
+                tran_we_ff[ii] <= trace_ctrl_i[TRACE_FLUSH_BIT] ? '0 : ( (ii == wr_ptr_ff ) ? wr_tran_acc 
+                                                                                            : tran_we_ff[ii]);
                 
    // Extrenal read logic
-   always_ff @(posedge clk or negedge rst_n)
-     if(~rst_n)
+   always_ff @(posedge clk or posedge rst)
+     if(rst)
         mem_rd_addr_ff <=0;
      else 
         mem_rd_addr_ff <= extnl_if.addr[MEM_ADDR_WIDTH+1:0];
@@ -135,6 +138,10 @@ module mem_tracer
    assign extnl_if.rdata = ~(|mem_rd_addr_ff[1:0]) ? mem_rtran_addr 
                                                   : ((mem_rd_addr_ff[1:0] == 1'b1) ? mem_rtran_data
                                                                                    : tran_we_ff[mem_rd_addr_ff[MEM_ADDR_WIDTH+1:2]]); 
+   assign extnl_if.ack = ~mem_we;
+   
+  // assign extnl_if.resp = 
+   
    assign trace_flush_end_o = &(mem_flush_addr_ff);
             
 endmodule
