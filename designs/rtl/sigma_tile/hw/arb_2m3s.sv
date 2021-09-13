@@ -13,11 +13,12 @@ module arb_2m3s
 #(
 	parameter SFR_BITSEL = 16
 	, parameter XIF_BITSEL = 31
+
 )
 (
 	input [0:0] clk_i
 	, input [0:0] rst_i
-	
+
 	, MemSplit32.Slave m0
 	, MemSplit32.Slave m1
 	, MemSplit32.Master s0
@@ -54,7 +55,7 @@ module arb_2m3s
 			m1_s2_rd_inprogress <= m1_s2_rd_inprogress_next;
 			end
 		end
-	
+
 	logic s0_busy, s1_busy, s2_busy;
 
 	always @*
@@ -89,7 +90,7 @@ module arb_2m3s
 		s2.addr 	= 0;
 		s2.be 		= 4'h0;
 		s2.wdata 	= 0;
-		
+
 		m0_s0_rd_inprogress_next = m0_s0_rd_inprogress;
 		m0_s1_rd_inprogress_next = m0_s1_rd_inprogress;
 		m0_s2_rd_inprogress_next = m0_s2_rd_inprogress;
@@ -144,6 +145,7 @@ module arb_2m3s
 			m0_s2_rd_inprogress_next = 1'b0;
 			m1_s2_rd_inprogress_next = 1'b0;
 			end
+
 
 		if (m0.req)
 			begin

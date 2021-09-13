@@ -448,7 +448,7 @@ module sigma_tile
         .trace_ctrl_i(trace_ctrl),
         .trace_flush_end_o(trace_flush_end),
         .cpu_data_if(cpu_data), 
-        .extnl_if(hif)
+        .extnl_if(xif)
     );
     
 	ram_dual_memsplit #(

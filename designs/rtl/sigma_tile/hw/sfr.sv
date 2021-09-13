@@ -69,7 +69,7 @@ always @(posedge clk_i)
 		timer_reload <= 1'b0;
 		timer_period <= 0;
 		timer_value <= 0;
-		tracer_ctrl_ff <= 4'h2;
+		tracer_ctrl_ff <= 4'h1;
 		end
 	else
 		begin
@@ -86,7 +86,7 @@ always @(posedge clk_i)
 			irq_timer <= 1'b0;
 			timer_period <= 0;
 			timer_value <= 0;
-			tracer_ctrl_ff <= 4'h2;
+			tracer_ctrl_ff <= 4'h1;
 			end
 
 		if (timer_inprogress)

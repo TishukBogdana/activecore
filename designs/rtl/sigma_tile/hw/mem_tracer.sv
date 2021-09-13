@@ -29,7 +29,7 @@ module mem_tracer
     input [3:0] trace_ctrl_i,
     output trace_flush_end_o,
     MemSplit32.Monitor cpu_data_if, 
-    MemSplit32.Slave extnl_if
+    MemSplit32 extnl_if
     );
     // ---------------------
     localparam MEM_ADDR_WIDTH = $clog2(CAPACITY );
@@ -47,6 +47,7 @@ module mem_tracer
     logic [MEM_ADDR_WIDTH-1:0] head_ptr_ff;
     logic tran_we_ff [CAPACITY -1 : 0];
     logic overflow_ff;
+    logic [1:0] ext_ack_ff;
     logic wr_tran_acc;
     logic rd_tran_acc;
     logic rd_tran_close_ff;
@@ -104,6 +105,7 @@ module mem_tracer
         .adr_width(MEM_ADDR_WIDTH),
         .mem_size(CAPACITY )
     ) i_dataram (
+        .clk(clk),
         .adr_i (mem_addr),
         .dat_i (mem_wtran_data),
         .we_i  (mem_we),
@@ -114,6 +116,7 @@ module mem_tracer
         .adr_width(MEM_ADDR_WIDTH),
         .mem_size(CAPACITY )
     ) i_adrram (
+        .clk(clk),
         .adr_i (mem_addr),
         .dat_i (mem_wtran_addr),
         .we_i  (mem_we),
@@ -132,15 +135,21 @@ module mem_tracer
    always_ff @(posedge clk or posedge rst)
      if(rst)
         mem_rd_addr_ff <=0;
-     else 
-        mem_rd_addr_ff <= extnl_if.addr[MEM_ADDR_WIDTH+1:2] + head_ptr_ff;
+     else if (extnl_if.req)
+        mem_rd_addr_ff <= extnl_if.addr[MEM_ADDR_WIDTH+1:0] + ( head_ptr_ff << 2 );
         
-   assign extnl_if.rdata = ~(|mem_rd_addr_ff[1:0]) ? mem_rtran_addr 
-                                                  : ((mem_rd_addr_ff[1:0] == 1'b1) ? mem_rtran_data
+   assign extnl_if.rdata = (~|mem_rd_addr_ff[1:0]) ? mem_rtran_addr 
+                                                  : ((mem_rd_addr_ff[1:0] == 2'b1) ? mem_rtran_data
                                                                                    : {{31{'0}}, tran_we_ff[mem_rd_addr_ff[MEM_ADDR_WIDTH+1:2]]}); 
-   assign extnl_if.ack = ~mem_we;
+   assign extnl_if.ack = ~mem_we & extnl_if.req & extnl_if.addr[MEM_ADDR_WIDTH+2];
    
-  // assign extnl_if.resp = 
+   always_ff @(posedge clk or posedge rst)
+    if (rst)
+        ext_ack_ff <= '0;
+    else 
+        ext_ack_ff <= ( ext_ack_ff << 1 ) | ~mem_we & extnl_if.req;
+
+   assign extnl_if.resp = ext_ack_ff[1];
    
    assign trace_flush_end_o = &(mem_flush_addr_ff);
             
