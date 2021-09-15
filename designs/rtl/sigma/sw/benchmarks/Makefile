@@ -26,6 +26,7 @@ bmarks = \
 	crc32 \
 	bootloader \
 	dhrystone \
+	my_test \
 	#towers \
 	#vvadd \
 	#multiply \

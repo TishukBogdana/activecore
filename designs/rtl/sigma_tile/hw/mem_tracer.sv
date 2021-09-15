@@ -29,7 +29,7 @@ module mem_tracer
     input [3:0] trace_ctrl_i,
     output trace_flush_end_o,
     MemSplit32.Monitor cpu_data_if, 
-    MemSplit32 extnl_if
+    MemSplit32.Slave extnl_if
     );
     // ---------------------
     localparam MEM_ADDR_WIDTH = $clog2(CAPACITY );

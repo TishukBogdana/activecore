@@ -20,7 +20,7 @@ module sfr
 	, input [0:0] rst_i
 
 	, MemSplit32.Slave host
-
+    , MemSplit32.Monitor cpu_data
 	, output logic sw_reset_o
 
 	, output logic [(2**IRQ_NUM_POW)-1:0] irq_en_bo
@@ -28,8 +28,6 @@ module sfr
 
 	, output logic sgi_req_o
 	, output logic [IRQ_NUM_POW-1:0] sgi_code_bo
-	, output logic [3:0] trace_ctrl_o
-	, input logic trace_flush_end_i
 );
 
 localparam IDCODE_ADDR 			= 8'h00;
@@ -54,6 +52,21 @@ logic [31:0] timer_value, timer_value_inc;
 logic [3:0]  tracer_ctrl_ff;
 assign timer_value_inc = timer_value + 1;
 
+logic trace_flush_end;
+logic [1:0] trace_req_ff;
+MemSplit32 trace();
+    
+	 mem_tracer #(
+	   .CAPACITY(256)
+	 ) i_tracer (
+        .clk(clk_i),
+        .rst(rst_i),
+        .trace_ctrl_i(tracer_ctrl_ff),
+        .trace_flush_end_o(trace_flush_end),
+        .cpu_data_if(cpu_data), 
+        .extnl_if(trace)
+    );
+    
 always @(posedge clk_i)
 	begin
 	if (rst_i)
@@ -100,7 +113,7 @@ always @(posedge clk_i)
 			else timer_value <= timer_value_inc;
 			end
 			
-        if (trace_flush_end_i) begin
+        if (trace_flush_end) begin
             tracer_ctrl_ff <= tracer_ctrl_ff & TRACE_MASK;
         end
         
@@ -139,7 +152,7 @@ always @(posedge clk_i)
 				end
 			else
 				begin
-				host.resp <= 1'b1;
+				host.resp <= 1'b1 & ~host.addr[10];
 				if (host.addr[7:0] == IDCODE_ADDR)  		host.rdata <= 32'hdeadbeef;
 				if (host.addr[7:0] == CTRL_ADDR)    		host.rdata <= {31'h0, sw_reset};
 				if (host.addr[7:0] == CORENUM_ADDR) 		host.rdata <= corenum;
@@ -149,12 +162,20 @@ always @(posedge clk_i)
 				if (host.addr[7:0] == TIMER_VALUE_ADDR) 	host.rdata <= timer_value;
 				if (host.addr[7:0] == TRACE_CTRL_ADDR) 	    host.rdata <= tracer_ctrl_ff;
 				end
+			end 
+			if (trace.resp) begin
+			     host.rdata <= trace.rdata;
+			     host.resp  <= trace.resp;
 			end
 		end
 	end
-
+  assign  trace.req = host.req;
+  assign  trace.addr = host.addr;
+  assign trace.we = '0;
+  
+ 
+        
 assign host.ack = host.req;
 
-assign trace_ctrl_o  = tracer_ctrl_ff;
 
 endmodule

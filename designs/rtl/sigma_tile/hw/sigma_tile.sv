@@ -437,20 +437,6 @@ module sigma_tile
 
     endgenerate
     
-    logic [3:0] trace_ctrl;
-    logic trace_flush_end;
-    
-	 mem_tracer #(
-	   .CAPACITY(256)
-	 ) i_tracer (
-        .clk(clk_i),
-        .rst(rst_i),
-        .trace_ctrl_i(trace_ctrl),
-        .trace_flush_end_o(trace_flush_end),
-        .cpu_data_if(cpu_data), 
-        .extnl_if(xif)
-    );
-    
 	ram_dual_memsplit #(
 		.mem_init(mem_init)
 		, .mem_type(mem_type)
@@ -494,7 +480,7 @@ module sigma_tile
         , .rst_i	(rst_i)
 
         , .host(sfr_if)
-
+        , .cpu_data (cpu_data )
         , .sw_reset_o(sw_reset)
 
         , .irq_en_bo(irq_en)
@@ -502,8 +488,6 @@ module sigma_tile
 
         , .sgi_req_o(sgi_req)
         , .sgi_code_bo(sgi_code)
-        , .trace_ctrl_o (trace_ctrl)
-        , .trace_flush_end_i (trace_flush_end)
     );
 	
 

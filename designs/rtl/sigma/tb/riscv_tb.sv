@@ -38,7 +38,7 @@ sigma
 	
 	, .mem_init("YES")
 	, .mem_type("elf")
-	, .mem_data("C://Users//Bogdana//FILES//ifmo//Master//2_course//SoCSECUR//activecore-master//designs//rtl//sigma//sw//benchmarks//heartbeat_variable.riscv")
+	, .mem_data("C://Users//Bogdana//FILES//ifmo//Master//2_course//SoCSECUR//activecore//designs//rtl//sigma//sw//benchmarks//my_test.riscv")
 	, .mem_size(8192)
 ) sigma
 (
@@ -100,7 +100,7 @@ udm_driver udm;
 localparam CPU_RAM_ADDR         = 32'h00000000;
 localparam CSR_LED_ADDR         = 32'h80000000;
 localparam CSR_SW_ADDR          = 32'h80000004;
-
+logic [31:0] baseaddr = 32'h00100400;
 initial
 begin
 	$display ("### SIMULATION STARTED ###");
@@ -115,7 +115,14 @@ begin
 	udm.check();
 	//udm.hreset();
 	WAIT(100);
-	
+	for (int i = 0; i < 20; i++ ) begin
+        $display("ADDR:");
+	   udm.rd32(baseaddr + i * 4);
+	   $display("DATA:");
+	   udm.rd32(baseaddr + i * 4 + 1);
+	   $display("RW");
+	   udm.rd32(baseaddr + i * 4 + 2);
+	end
 	//udm.wr32(CSR_LED_ADDR, 32'hdeadbeef);
 	//udm.rd32(CSR_SW_ADDR);
 	
