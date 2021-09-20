@@ -82,7 +82,7 @@ class sigma:
 
         """
         self.udm.clr(self.__buf_addr, self.__buf_size)
-    
+
     def hw_test_generic(self, sigma, test_name, firmware_filename, sleep_secs, verify_data):
         print("#### " + test_name + " TEST STARTED ####");
         
@@ -111,6 +111,44 @@ class sigma:
             print("#### " + test_name + " TEST FAILED! ####")
         
         print("")
+        return test_succ_flag
+    
+    def hw_test_tracer (self, sigma, test_name, firmware_filename, sleep_secs):
+        tracer_addr = 0x00100400    # Base address of tracer
+        cfg_rgaddr = 0x00100032     # Tracer CSR address
+        
+        print("#### " + test_name + " TEST STARTED ####");
+        
+        print("Clearing buffer")
+        sigma.reset_buf()
+        
+        print("Loading test program...")
+        sigma.tile.loadelf(firmware_filename)
+        print("Test program written!")
+    
+        time.sleep(sleep_secs)
+
+        print("Reading cfg register...")
+        print(sigma.tile.udm.rd32(cfg_rgaddr))
+
+        print("Reading tracer buffer...")
+        
+        print("-----------------------------------------------------------------------------------------------------------")
+        print("№   Addr         Data         RW ")
+
+        for i in range (8):
+            print(
+                i,
+                " ",hex(sigma.tile.udm.rd32(tracer_addr + i * 4)).ljust(10, '0'),         # Address of transaction 
+                " ",hex(sigma.tile.udm.rd32(tracer_addr + i * 4 + 1)).ljust(10, '0'),     # Data of transaction
+                " ",hex(sigma.tile.udm.rd32(tracer_addr + i * 4 + 2)).ljust(10, '0')      # RW flag
+            )
+
+        print("-----------------------------------------------------------------------------------------------------------")
+        print("Tracer buffer was read! Grand Success")
+    
+        test_succ_flag = 1
+
         return test_succ_flag
     
     def run_compliance_tests(self):
