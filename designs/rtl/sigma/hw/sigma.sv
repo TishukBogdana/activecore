@@ -30,6 +30,15 @@ module sigma
 	, output [31:0] gpio_bo
 );
 
+logic acc_ack;
+logic acc_resp;
+logic [31:0] acc_rdata;
+logic  acc_start;
+logic  acc_on;
+logic acc_ready;
+logic calc_fin;	
+logic accel_sel;
+
 wire srst;
 reset_sync reset_sync
 (
@@ -70,8 +79,26 @@ sigma_tile #(
 	
 	, .hif(hif)
 	, .xif(xif)
+    , .accel_rdy_i (acc_ready)
+	, .accel_int_fin_i (calc_fin)
+	, .accel_sw_on_o (acc_on)
+	, .accel_start_o (acc_start)
 );
-	
+
+sobel i_rr_corr 
+(
+     .clk (clk_i),
+     .rst (arst_i),
+     .mif (xif),   
+     .acc_ack_o(acc_ack),
+     .acc_resp_o(acc_resp),
+     .acc_rdata_o(acc_rdata), 
+     .acc_start_i(acc_start), 
+     .acc_on_i(acc_on),   
+     .acc_ready_o(acc_ready), 
+     .calc_fin_o(calc_fin)    
+);
+
 udm #(
     .BUS_TIMEOUT(UDM_BUS_TIMEOUT)
     , .RTX_EXTERNAL_OVERRIDE(UDM_RTX_EXTERNAL_OVERRIDE)
@@ -136,13 +163,15 @@ always @(posedge clk_i)
             end
         end
     end
+assign accel_sel = xif.req &  |(xif.addr[8] | xif.addr[6]);
 
 // bus response
 always @*
     begin
-    xif.resp = csr_resp;
+    xif.resp = csr_resp | acc_resp;
     xif.rdata = 0;
     if (csr_resp) xif.rdata = csr_rdata;
+    else if (acc_resp) xif.rdata = acc_rdata;
     end
 
 endmodule

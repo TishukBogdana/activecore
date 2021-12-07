@@ -5,7 +5,7 @@
 // 
 // Create Date: 04.11.2021 11:42:09
 // Design Name: 
-// Module Name: correlation matrix calculation accelerator
+// Module Name: sobel
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -23,8 +23,8 @@
 `include "sigma_tile.svh";
 
 module sobel#(
-    parameter MATRIX_BASE_ADDR  = 32'h80000080,
-    parameter FIFO_BASE_ADDR    = 32'h80000040, 
+    parameter MATRIX_BASE_ADDR  = 32'h00100036,
+    parameter FIFO_BASE_ADDR    = 99, //!
 	parameter TWIDTH     = 3,   // Window width
 	parameter CHNUM      = 2,
 	parameter INT_LENGTH = 10,  // Accumulation length
@@ -35,13 +35,9 @@ module sobel#(
      input logic clk,
      input logic rst,
      MemSplit32.Slave mif,    
-     output logic acc_ack_o,
-     output logic acc_resp_o,
-     output logic  [31:0] acc_rdata_o,
      input logic acc_start_i, // Start calculation
-     input logic acc_on_i,    // Accelerator Switch ON
-     output logic acc_ready_o, // Accelerator is ready to accept next sample
-     output logic calc_fin_o   // Finish caclucation for integration time
+     output logic acc_ready_o,
+     output logic calc_fin_o
 );
 
 localparam MUL_NUM = CHNUM * TWIDTH;
@@ -49,7 +45,7 @@ localparam CMUL_NUM      = ( (MUL_NUM * MUL_NUM )- MUL_NUM ) / 2 + MUL_NUM;
 localparam CMUL_NUM_PC   =  2;
 localparam FIFO_DEPTH    = FIFO_BASE_ADDR + 4 * MUL_NUM; 
 localparam ACCUM_WIDTH   = 32;
-localparam CALC_LATENCY  = CMUL_NUM/2 + CMUL_NUM%2;
+localparam CALC_LATENCY  = CMUL_NUM/2 + 2;
                                                              
 logic [MUL_NUM -1:0] i_ptr_next [CMUL_NUM_PC -1:0];
 logic [MUL_NUM -1:0] j_ptr_next [CMUL_NUM_PC -1:0];
@@ -78,10 +74,8 @@ logic [2*IDWIDTH   :0] o_real       [CMUL_NUM_PC -1:0];
 logic [2*IDWIDTH   :0] o_imag       [CMUL_NUM_PC -1:0];
 logic            [3:0] ram_addr;
 logic                  ram_we;
-logic [ACCUM_WIDTH-1:0]  ram_din_imag  [CMUL_NUM_PC -1:0];
-logic [ACCUM_WIDTH-1:0]  ram_dout_imag [CMUL_NUM_PC -1:0];
-logic [ACCUM_WIDTH-1:0]  ram_din_real  [CMUL_NUM_PC -1:0];
-logic [ACCUM_WIDTH-1:0]  ram_dout_real [CMUL_NUM_PC -1:0];
+logic [ACCUM_WIDTH:0]  ram_din_imag  [CMUL_NUM_PC -1:0];
+logic [ACCUM_WIDTH:0]  ram_dout_imag [CMUL_NUM_PC -1:0];
 
 logic smpl_rdy_new;
 logic [IDWIDTH -1:0] smpl_rvec_ff    [MUL_NUM -1:0];
@@ -89,71 +83,23 @@ logic [IDWIDTH -1:0] smpl_ivec_ff    [MUL_NUM -1:0];
 logic                smpl_vec_wr;
 logic                smpl_vec_en    [MUL_NUM/2 -1:0];
 
-logic [3:0] ram_we_ptr_ff;
-logic [3:0] ram_we_ptr_next;
-logic       ram_we_ptr_en;
-
-// control logic 
-logic acc_on_ff;
-logic acc_sw_on;
-
-logic [3:0] proc_ctr_ff;
-logic smpl_accepted_ff;
-logic [$clog2(INT_LENGTH):0]integr_ctr_ff;
-logic [3:0] proc_ctr_next;
-logic [$clog2(INT_LENGTH):0]integr_ctr_next;
-logic resp_ff;
-logic mem_bk_ff;
-logic mem_imagsel_ff;
-
-// output port assignments
-assign acc_ready_o = (proc_ctr_ff == CALC_LATENCY );
-assign calc_fin_o  = (integr_ctr_ff == INT_LENGTH);
-
-// control logic
-assign smpl_rdy_new =  acc_sw_on | smpl_vec_wr;
-assign acc_sw_on = ~acc_on_ff & acc_on_i; 
-assign proc_ctr_next = smpl_accepted_ff ? '1 : ( (proc_ctr_ff == CALC_LATENCY ) ? '0 : proc_ctr_ff + |proc_ctr_ff);
-
-assign integr_ctr_next = (integr_ctr_ff == INT_LENGTH) ? '0 : (  (proc_ctr_ff == CALC_LATENCY ) ? integr_ctr_ff + 1
-                                                                                                : integr_ctr_ff);
-                                                                                               
-always_ff @(posedge clk or posedge rst)
-    if(rst) begin
-        acc_on_ff <= '0;
-        proc_ctr_ff <= '0;
-        integr_ctr_ff <= '0;
-        ram_we_ptr_ff <= '0;
-        smpl_accepted_ff <= '0;
-    end else begin
-        acc_on_ff <= acc_on_i; 
-        proc_ctr_ff <= proc_ctr_next;
-        integr_ctr_ff <= integr_ctr_next;
-        ram_we_ptr_ff <= ram_we_ptr_next;
-        smpl_accepted_ff <= smpl_rdy_new;
-    end
-           
 assign smpl_vec_wr = mif.req & mif.we 
                     & (mif.addr >= FIFO_BASE_ADDR) 
                     & (mif.addr < (FIFO_BASE_ADDR + FIFO_DEPTH));
  
-  for ( genvar ii = 0; ii < TWIDTH; ii = ii + 1 ) begin : g_sample_fill
+  for ( genvar ii = 0; ii < MUL_NUM/2; ii = ii + 1 ) begin : g_sample_fill
+    assign smpl_vec_en[ii] = smpl_vec_wr & (ii == (mif.addr - FIFO_BASE_ADDR )); 
     
     always_ff @(posedge clk)
-        if (smpl_vec_wr) begin
-            smpl_rvec_ff[ii] <= (ii == TWIDTH-1) ? mif.data[8:0] : smpl_rvec_ff[ii+1] ;
-            smpl_ivec_ff[ii] <= (ii == TWIDTH-1) ? mif.data[15:8] :  smpl_ivec_ff[ii + 1] ;          
-            smpl_rvec_ff[ii + TWIDTH] <= (ii == TWIDTH-1) ? mif.data[23:16] : smpl_rvec_ff[ii + TWIDTH + 1];
-            smpl_ivec_ff[ii + TWIDTH] <= (ii == TWIDTH-1) ? mif.data[31:24] : smpl_ivec_ff[ii + TWIDTH + 1];   
+        if (smpl_vec_en[ii]) begin
+            smpl_rvec_ff[2*ii] <= mif.data[8:0];
+            smpl_ivec_ff[2*ii] <= mif.data[15:8];          
+            smpl_rvec_ff[2*ii + 1] <= mif.data[23:16];
+            smpl_ivec_ff[2*ii + 1] <= mif.data[31:24];   
         end
             
   end : g_sample_fill
-
-
-assign ram_we_ptr_en = proc_ctr_ff[1];
-        
-assign ram_addr = (|proc_ctr_ff | smpl_accepted_ff ) ? ( proc_ctr_ff >> 1 ): mif.addr[4+:4];
-                       
+                        
 for ( genvar ii = 0; ii < CMUL_NUM_PC; ii = ii + 1 ) begin  : g_dsp_ptr
 
 assign j_incr_sel[ii] = ( ii == 0 ) ? ( j_ptr_ff[CMUL_NUM_PC -1][MUL_NUM -1] ? 1 : j_ptr_ff[CMUL_NUM_PC -1] << 1)
@@ -221,7 +167,7 @@ assign i_ptr_next[ii] =  smpl_rdy_new ? i_init[ii] : i_incr[ii];
             j_real_part_ff[ii] <= j_real_part[ii];
         end 
 
-    mult_gen_0 i_mult_ac
+    mut_gen_0 i_mult_ac
         (
         .CLK (clk),
         .A(i_real_part_ff[ii]),
@@ -229,60 +175,46 @@ assign i_ptr_next[ii] =  smpl_rdy_new ? i_init[ii] : i_incr[ii];
         .P(ac_prod)
         );
 
-    mult_gen_0 i_mult_bd
+    mut_gen_0 i_mult_bd
         (
         .CLK (clk),
         .A(i_imag_part_ff[ii]),
         .B(j_imag_part_ff[ii]),
-        .P(bd_prod[ii])
+        .P(bd_prod)
         );
     
-    mult_gen_0 i_mult_ad
+    mut_gen_0 i_mult_ad
         (
         .CLK (clk),
         .A(i_real_part_ff[ii]),
         .B(j_imag_part_ff[ii]),
-        .P(ad_prod[ii])
+        .P(ad_prod)
         );
         
-    mult_gen_0 i_mult_bc
+    mut_gen_0 i_mult_bc
         (
         .CLK (clk),
         .A(i_imag_part_ff[ii]),
         .B(j_real_part_ff[ii]),
-        .P(bc_prod[ii])
+        .P(bc_prod)
         );
     
-    c_addsub_0 i_bc_add_ad
+    c_add_sub_0 i_bc_add_ad
         (
         .A(ad_prod),
         .B(bc_prod),
         .ADD(1'b1),
-        .S(o_imag[ii])
+        .S(o_imag)
         );
       
-    c_addsub_0 i_ac_sub_bd
+    c_add_sub_0 i_ac_sub_bd
         (
         .A(ac_prod),
         .B(bd_prod),
         .ADD(1'b0),
-        .S(o_real[ii])
+        .S(o_real)
         );
-   
-   c_addsub_1 acc_real
-    (
-    .A(o_real[ii]),
-    .B(ram_dout_real[ii]),
-    .S(ram_din_real[ii])
-    );
-    
-   c_addsub_1 acc_imag
-    (
-    .A(o_imag[ii]),
-    .B(ram_dout_imag[ii]),
-    .S(ram_din_imag[ii])
-    );
-         
+        
    ram 
     #(
         .dat_width(32), 
@@ -308,25 +240,10 @@ assign i_ptr_next[ii] =  smpl_rdy_new ? i_init[ii] : i_incr[ii];
         .dat_o(ram_dout_imag[ii]),
         .clk  (clk)
       );    
-      
-assign acc_rdata_o = {31{(ii == mem_bk_ff)}} & (mem_imagsel_ff ? ram_dout_imag[ii] : ram_dout_real[ii] );    
         
 end :  g_dsp_ptr
 
-// MIF outputs
-always_ff @(posedge clk or posedge rst)
-    if (rst) begin
-        resp_ff   <= '0;
-        mem_bk_ff <= '0;
-        mem_imagsel_ff <= '0;
-    end else begin
-        resp_ff   <= mem.req & mem.ack;
-        mem_bk_ff <= mif.addr[2];
-        mem_imagsel_ff <= mif.addr[3];
-    end
-    
-assign acc_ack_o = ~(|proc_ctr_ff | smpl_accepted_ff );
-assign acc_resp_o = resp_ff;
-   
+
+       
  
 endmodule

@@ -36,6 +36,10 @@ module sigma_tile
     
     , MemSplit32.Slave hif     // host interface
     , MemSplit32.Master xif    // expansion interface
+    , input  logic accel_rdy_i
+	, input  logic accel_int_fin_i
+	, output logic accel_sw_on_o
+	, output logic accel_start_o
 );
 
     localparam XIF_BITSEL  = 31;
@@ -489,6 +493,10 @@ module sigma_tile
 
         , .sgi_req_o(sgi_req)
         , .sgi_code_bo(sgi_code)
+        , .accel_rdy_i (accel_rdy_i )
+        , .accel_int_fin_i (accel_int_fin_i)
+        , .accel_sw_on_o (accel_sw_on_o)
+        , .accel_start_o (accel_start_o)
     );
 	
 

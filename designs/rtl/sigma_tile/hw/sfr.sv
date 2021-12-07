@@ -28,6 +28,10 @@ module sfr
 
 	, output logic sgi_req_o
 	, output logic [IRQ_NUM_POW-1:0] sgi_code_bo
+	, input  logic accel_rdy_i
+	, input  logic accel_int_fin_i
+	, output logic accel_sw_on_o
+	, output logic accel_start_o
 );
 
 localparam IDCODE_ADDR 			= 8'h00;
@@ -40,13 +44,15 @@ localparam SGI_ADDR 			= 8'h14;
 localparam TIMER_CTRL_ADDR 		= 8'h20;
 localparam TIMER_PERIOD_ADDR 	= 8'h24;
 localparam TIMER_VALUE_ADDR 	= 8'h28;
-
+localparam ACCEL_CTRL_REG       = 8'h32;
 logic sw_reset, sw_reset_autoclr;
 always @(posedge clk_i) sw_reset_o <= rst_i | sw_reset;
 
 logic timer_inprogress, timer_reload;
 logic [31:0] timer_period;
 logic [31:0] timer_value, timer_value_inc;
+logic [3:0]  accel_ctrl_ff;
+logic [3:0]  accel_ctrl_next;
 assign timer_value_inc = timer_value + 1;
 
 always @(posedge clk_i)
@@ -64,6 +70,7 @@ always @(posedge clk_i)
 		timer_reload <= 1'b0;
 		timer_period <= 0;
 		timer_value <= 0;
+		accel_ctrl_ff <= '0;
 		end
 	else
 		begin
@@ -92,7 +99,11 @@ always @(posedge clk_i)
 				end
 			else timer_value <= timer_value_inc;
 			end
-
+        if ( accel_rdy_i) 
+            accel_ctrl_ff[1] <= accel_rdy_i;
+        if ( accel_int_fin_i )
+             accel_ctrl_ff[0] <= accel_int_fin_i;
+             
 		if (host.req)
 			begin
 			if (host.we)
@@ -121,6 +132,10 @@ always @(posedge clk_i)
 					begin
 					timer_period <= host.wdata;
 					end
+				if (host.addr[7:0] == ACCEL_CTRL_REG )
+					begin
+					accel_ctrl_ff <= {host.wdata[3:2], accel_ctrl_ff[1:0] & host.wdata[1:0]};
+					end
 				end
 			else
 				begin
@@ -138,5 +153,8 @@ always @(posedge clk_i)
 	end
 
 assign host.ack = host.req;
+
+assign accel_sw_on_o = accel_ctrl_ff[3];
+assign accel_start_o = accel_ctrl_ff[2];
 
 endmodule
