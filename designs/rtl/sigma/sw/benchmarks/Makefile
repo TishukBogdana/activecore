@@ -26,6 +26,7 @@ bmarks = \
 	crc32 \
 	bootloader \
 	dhrystone \
+	accel_driver \
 	#towers \
 	#vvadd \
 	#multiply \

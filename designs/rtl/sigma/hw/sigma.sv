@@ -92,8 +92,7 @@ sobel i_rr_corr
      .mif (xif),   
      .acc_ack_o(acc_ack),
      .acc_resp_o(acc_resp),
-     .acc_rdata_o(acc_rdata), 
-     .acc_start_i(acc_start), 
+     .acc_rdata_o(acc_rdata),  
      .acc_on_i(acc_on),   
      .acc_ready_o(acc_ready), 
      .calc_fin_o(calc_fin)    

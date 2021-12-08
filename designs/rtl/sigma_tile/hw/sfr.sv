@@ -147,6 +147,7 @@ always @(posedge clk_i)
 				if (host.addr[7:0] == TIMER_CTRL_ADDR) 		host.rdata <= {30'h0, timer_reload, timer_inprogress};
 				if (host.addr[7:0] == TIMER_PERIOD_ADDR) 	host.rdata <= timer_period;
 				if (host.addr[7:0] == TIMER_VALUE_ADDR) 	host.rdata <= timer_value;
+				if (host.addr[7:0] == ACCEL_CTRL_REG)    	host.rdata <= accel_ctrl_ff;
 				end
 			end
 		end
