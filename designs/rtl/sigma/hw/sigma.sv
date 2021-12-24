@@ -88,7 +88,7 @@ sigma_tile #(
 sobel i_rr_corr 
 (
      .clk (clk_i),
-     .rst (arst_i),
+     .rst (cpu_reset),
      .mif (xif),   
      .acc_ack_o(acc_ack),
      .acc_resp_o(acc_resp),

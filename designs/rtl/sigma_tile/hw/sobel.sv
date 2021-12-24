@@ -159,8 +159,13 @@ assign smpl_vec_wr = mif.req & mif.we
  
   for ( genvar ii = 0; ii < TWIDTH; ii = ii + 1 ) begin : g_sample_fill
     
-    always_ff @(posedge clk)
-        if (smpl_vec_wr) begin
+    always_ff @(posedge clk or posedge rst)
+        if (rst) begin
+        smpl_rvec_ff[ii] <= '0;
+        smpl_ivec_ff[ii] <= '0;
+        smpl_rvec_ff[ii + TWIDTH] <= '0;
+        smpl_ivec_ff[ii + TWIDTH] <= '0;
+        end else if (smpl_vec_wr) begin
             smpl_rvec_ff[ii] <= (ii == TWIDTH-1) ? mif.wdata[7:0] : smpl_rvec_ff[ii+1] ;
             smpl_ivec_ff[ii] <= (ii == TWIDTH-1) ? mif.wdata[15:8] :  smpl_ivec_ff[ii + 1] ;          
             smpl_rvec_ff[ii + TWIDTH] <= (ii == TWIDTH-1) ? mif.wdata[23:16] : smpl_rvec_ff[ii + TWIDTH + 1];
@@ -348,7 +353,7 @@ always_ff @(posedge clk or posedge rst)
         mem_bk_ff <= '0;
         mem_imagsel_ff <= '0;
     end else begin
-        resp_ff   <= mif.req & mif.ack;
+        resp_ff   <= mif.req;
         mem_bk_ff <= mif.addr[3];
         mem_imagsel_ff <= mif.addr[2];
     end

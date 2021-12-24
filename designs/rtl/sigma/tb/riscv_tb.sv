@@ -128,6 +128,9 @@ localparam CPU_RAM_ADDR         = 32'h00000000;
 localparam CSR_LED_ADDR         = 32'h80000000;
 localparam CSR_SW_ADDR          = 32'h80000004;
 localparam RES_BUF_ADDR         = 32'h80000100;
+localparam WINDOW               = 32'h80000040;
+localparam ACCEL_CTRL           = 32'h00100032;
+
 localparam INTEG_LENGTH         = 10;
 localparam WIND_SIZE            = 3;
 	   logic [7:0] reala;
@@ -161,7 +164,7 @@ begin
         ref_imag[i] = '0;
     end
 	
-	while (accum_ctr < INTEG_LENGTH) begin
+	while (accum_ctr < 3) begin
 	   array_ptr = '0;
 	   
       if (!accum_ctr) begin
@@ -197,14 +200,25 @@ begin
 	   end
 	end
 				
-	for (int i = 0; i < 21; i = i + 1) begin
-	   $display ("element real/imag %d", i);
-	   $display ("assumed  real %x",ref_real[i] );
-	   $display ("assumed  imag %x",ref_imag[i] );
-	   udm.rd32(read_addr + i*8);
-	   udm.rd32(read_addr + 4 + i*8);
-	end
-
+//	for (int i = 0; i < 21; i = i + 1) begin
+//	   $display ("element real/imag %d", i);
+//	   $display ("assumed  real %x",ref_real[i] );
+//	   $display ("assumed  imag %x",ref_imag[i] );
+//	   udm.rd32(read_addr + i*8);
+//	   udm.rd32(read_addr + 4 + i*8);
+//	end
+//	udm.wr32(WINDOW, 32'h52629131);
+//    udm.wr32(WINDOW + 4, 32'h63737252);
+//    udm.wr32(WINDOW + 8, 32'h41717171);
+//    udm.wr32(ACCEL_CTRL, 32'h8);
+//    WAIT(1000);
+//    for (int i = 0; i < 21; i = i + 1) begin
+//	   $display ("element real/imag %d", i);
+//	   $display ("assumed  real %x",ref_real[i] );
+//	   $display ("assumed  imag %x",ref_imag[i] );
+//	   udm.rd32(read_addr + i*8);
+//	   udm.rd32(read_addr + 4 + i*8);
+//	end
 	
 	$display ("### TEST PROCEDURE FINISHED ###");
 	$stop;

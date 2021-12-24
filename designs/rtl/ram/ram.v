@@ -9,8 +9,13 @@ module ram
     output reg [dat_width-1:0] dat_o,
     input          clk
   ); 
-
+  
    reg [dat_width-1:0] ram [0:mem_size - 1] /* synthesis ram_style = no_rw_check */;
+   
+   initial begin 
+   $readmemb("C:\\Users\\Bogdana\\FILES\\ifmo\\Master\\2_course\\verif\\lab1_1\\src\\mem.txt", ram);
+
+   end
    
    always @ (posedge clk)
      begin 
